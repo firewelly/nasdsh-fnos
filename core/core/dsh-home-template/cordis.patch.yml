@@ -1,0 +1,177 @@
+# NasDSH 全局 patch 层（$DSH_HOME/cordis.patch.yml）
+# 这里定义 web / headless / dsh-tui 三个 profile 共用的模型 provider。
+# 凭据优先走环境变量（compose 安装参数注入），也可以在 dsh web
+# Settings → Models 里填写，写入 $DSH_HOME/.credentials.yaml。
+#
+# 端点注意：BigModel 必须使用 /coding/ 订阅端点，禁止使用按 token 计费的
+# /api/paas/v4/chat/completions 端点。
+
+- id: llm-pi-ai
+  name: '@deepseek-ai/dsh-llm-pi-ai'
+  config:
+    providers:
+      bigmodel-coding-plan:
+        displayName: BigModel Coding Plan
+        apiKeyEnv: BIGMODEL_API_KEY
+        api: openai-completions
+        baseURL: https://open.bigmodel.cn/api/coding/paas/v4
+        compat:
+          thinkingFormat: deepseek
+        models:
+          - id: glm-5.3
+            name: GLM-5.3
+            contextWindow: 1000000
+            maxTokens: 128000
+            reasoningEfforts:
+              off: null
+              low: low
+              medium: medium
+              high: high
+              max: max
+          - id: glm-5.3-flash
+            name: GLM-5.3 Flash
+            contextWindow: 1000000
+            maxTokens: 128000
+            input:
+              - text
+              - image
+            reasoningEfforts:
+              off: null
+              low: low
+              medium: medium
+              high: high
+              max: max
+          - id: glm-5.1
+            name: GLM-5.1
+            contextWindow: 200000
+            maxTokens: 128000
+
+      bailian-coding-plan:
+        displayName: Alibaba Bailian Coding Plan
+        apiKeyEnv: BAILIAN_API_KEY
+        api: openai-completions
+        baseURL: https://coding.dashscope.aliyuncs.com/v1
+        compat:
+          thinkingFormat: qwen
+          supportsDeveloperRole: false
+        models:
+          - id: qwen3.7-plus
+            name: Qwen3.7 Plus
+            contextWindow: 1000000
+            maxTokens: 65536
+            input:
+              - text
+              - image
+          - id: qwen3.8-max
+            name: Qwen3.8 Max
+            contextWindow: 1000000
+            maxTokens: 65536
+            input:
+              - text
+              - image
+          - id: qwen3.8-flash
+            name: Qwen3.8 Flash
+            contextWindow: 1000000
+            maxTokens: 65536
+
+      token-plan:
+        displayName: Alibaba Token Plan
+        apiKeyEnv: TOKENPLAN_API_KEY
+        api: openai-completions
+        baseURL: https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1
+        compat:
+          thinkingFormat: qwen
+          supportsDeveloperRole: false
+        models:
+          - id: qwen3.8-max
+            name: Qwen3.8 Max
+            contextWindow: 1000000
+            maxTokens: 65536
+            input:
+              - text
+              - image
+          - id: qwen3.8-flash
+            name: Qwen3.8 Flash
+            contextWindow: 1000000
+            maxTokens: 65536
+          - id: deepseek-v4.1-flash
+            name: DeepSeek V4.1 Flash
+            contextWindow: 1000000
+            maxTokens: 384000
+          - id: kimi-k2.7-code
+            name: Kimi K2.7 Code
+            contextWindow: 262144
+            maxTokens: 98304
+            input:
+              - text
+              - image
+
+      volcengine-coding-plan:
+        displayName: Volcengine Ark Coding Plan
+        apiKeyEnv: VOLCENGINE_API_KEY
+        api: openai-completions
+        baseURL: https://ark.cn-beijing.volces.com/api/coding/v3
+        models:
+          - id: doubao-seed-2.1-pro
+            name: Doubao Seed 2.1 Pro
+            contextWindow: 1024000
+            maxTokens: 65536
+            input:
+              - text
+              - image
+          - id: glm-5.3
+            name: GLM-5.3
+            contextWindow: 1000000
+            maxTokens: 128000
+          - id: deepseek-v4-pro
+            name: DeepSeek V4 Pro
+            contextWindow: 1000000
+            maxTokens: 384000
+
+      xiaomi-mimo:
+        displayName: Xiaomi MiMo
+        apiKeyEnv: XIAOMI_MIMO_API_KEY
+        api: openai-completions
+        baseURL: https://api.xiaomimimo.com/v1
+        compat:
+          thinkingFormat: deepseek
+        models:
+          - id: mimo-v2.6-pro
+            name: MiMo V2.6 Pro
+            contextWindow: 1048576
+            maxTokens: 131072
+          - id: mimo-v2.6-flash
+            name: MiMo V2.6 Flash
+            contextWindow: 1048576
+            maxTokens: 131072
+          - id: mimo-v2.6-pro-ultraspeed
+            name: MiMo V2.6 Pro UltraSpeed
+            contextWindow: 1048576
+            maxTokens: 131072
+
+      opencode-go:
+        displayName: OpenCode Go
+        apiKeyEnv: OPENCODE_GO_API_KEY
+        api: openai-completions
+        baseURL: https://opencode.ai/zen/go/v1
+        models:
+          - id: glm-5.3
+            name: GLM-5.3
+            contextWindow: 1000000
+            maxTokens: 128000
+          - id: glm-5.3-flash
+            name: GLM-5.3 Flash
+            contextWindow: 1000000
+            maxTokens: 128000
+          - id: deepseek-v4.1-flash
+            name: DeepSeek V4.1 Flash
+            contextWindow: 1000000
+            maxTokens: 384000
+
+# 默认模型：有 BigModel Key 时优先 GLM-5.3-Flash，否则用 dsh 内置的
+# DeepSeek 官方路由（DEEPSEEK_API_KEY 或浏览器登录）。
+- id: agent-default-model
+  name: '@deepseek-ai/dsh-agent-default-model'
+  config:
+    provider: !!js 'process.env.BIGMODEL_API_KEY ? "bigmodel-coding-plan" : "deepseek-official"'
+    model: !!js 'process.env.BIGMODEL_API_KEY ? "glm-5.3-flash" : "deepseek-flash"'

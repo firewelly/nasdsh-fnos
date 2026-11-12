@@ -1,0 +1,169 @@
+#!/bin/bash
+### Package specific variables and functions（nasdsh，Docker 后端）
+### ----------------------------------------
+# 运行模型：fpk 负载内带 docker-image.tar.gz（docker save|gzip 的离线镜像），
+# 安装/升级时 docker load，start/stop 用 docker run/rm 管理容器 nasdsh。
+# 会话/配置等持久数据在 ${TRIM_PKGVAR}/data（升级保留），项目目录在宿主原路径。
+
+VERSION="0.1.0"                 # 与 manifest 的 version 保持一致（build_fpk.py 会校验）
+IMAGE_REPO="nasdsh"
+IMAGE_TAG="${IMAGE_REPO}:${VERSION}"
+CONTAINER_NAME="nasdsh"
+APP_PORT="12704"                # 与 manifest service_port / ui/config 保持一致
+
+VAR="${TRIM_PKGVAR}"
+CONF_PORT="${VAR}/port.conf"
+CONF_DATA="${VAR}/data.conf"
+CONF_PROJECTS="${VAR}/projects.conf"
+CONF_ROOTS="${VAR}/roots.conf"
+CONF_PIN="${VAR}/pin.conf"          # 0600
+
+DEFAULT_DATA="${VAR}/data"
+DEFAULT_PROJECTS="/vol1/1000/nasdsh-projects"
+
+IMAGE_TGZ="${TRIM_APPDEST}/docker-image.tar.gz"
+
+_load_conf() {
+    # $1=conf 文件 $2=默认值
+    if [ -r "$1" ]; then cat "$1"; else printf "%s" "$2"; fi
+}
+
+_top_dir() {
+    # /vol1/1000/xxx -> /vol1
+    printf "%s" "$1" | awk -F/ '{print "/"$2}'
+}
+
+_first_root() {
+    # "a,b,c" -> a
+    printf "%s" "$1" | cut -d, -f1
+}
+
+service_postinst ()
+{
+    # 持久化向导变量（var 目录升级后保留）；CLI 安装无向导时用默认值
+    if [ -n "${nasdsh_projects}" ]; then
+        printf "%s" "${nasdsh_projects}" > "${CONF_PROJECTS}"
+        echo "projects = ${nasdsh_projects}" >> "${LOG_FILE}"
+    elif [ ! -r "${CONF_PROJECTS}" ]; then
+        printf "%s" "${DEFAULT_PROJECTS}" > "${CONF_PROJECTS}"
+    fi
+    if [ -n "${nasdsh_data_dir}" ]; then
+        printf "%s" "${nasdsh_data_dir}" > "${CONF_DATA}"
+        echo "data_dir = ${nasdsh_data_dir}" >> "${LOG_FILE}"
+    elif [ ! -r "${CONF_DATA}" ]; then
+        printf "%s" "${DEFAULT_DATA}" > "${CONF_DATA}"
+    fi
+    if [ -n "${nasdsh_roots}" ]; then
+        printf "%s" "${nasdsh_roots}" > "${CONF_ROOTS}"
+        echo "roots = ${nasdsh_roots}" >> "${LOG_FILE}"
+    elif [ ! -r "${CONF_ROOTS}" ]; then
+        PROJECTS="$(_load_conf "${CONF_PROJECTS}" "${DEFAULT_PROJECTS}")"
+        printf "%s" "$(_top_dir "$(_first_root "$PROJECTS")")" > "${CONF_ROOTS}"
+    fi
+    if [ -n "${nasdsh_pin}" ]; then
+        printf "%s" "${nasdsh_pin}" > "${CONF_PIN}"
+        echo "pin = (set)" >> "${LOG_FILE}"
+    elif [ ! -r "${CONF_PIN}" ]; then
+        : > "${CONF_PIN}"
+    fi
+    chmod 600 "${CONF_PIN}" 2>/dev/null || true
+
+    # 建目录 + 导入离线镜像（升级时新包内是新版本镜像）
+    DATA="$(_load_conf "${CONF_DATA}" "${DEFAULT_DATA}")"
+    PROJECTS="$(_load_conf "${CONF_PROJECTS}" "${DEFAULT_PROJECTS}")"
+    mkdir -p "${DATA}"
+    echo "${PROJECTS}" | tr ',' '\n' | while read -r p; do
+        [ -n "$p" ] && mkdir -p "$p"
+    done
+    # 容器内以 uid 1000(gid 10) 运行；Docker 自动创建/root 建的目录需校正属主
+    chown -R 1000:10 "${DATA}" 2>/dev/null || true
+    echo "${PROJECTS}" | tr ',' '\n' | while read -r p; do
+        [ -n "$p" ] && chown -R 1000:10 "$p" 2>/dev/null || true
+    done
+    if [ -f "${IMAGE_TGZ}" ]; then
+        echo "docker load ${IMAGE_TGZ} ..." >> "${LOG_FILE}"
+        docker load -i "${IMAGE_TGZ}" >> "${LOG_FILE}" 2>&1 || \
+            echo "WARNING: docker load 失败（start 时会重试）" >> "${LOG_FILE}"
+    else
+        echo "WARNING: ${IMAGE_TGZ} 不存在，依赖本机已有 ${IMAGE_TAG}" >> "${LOG_FILE}"
+    fi
+}
+
+daemon_status ()
+{
+    [ "$(docker inspect -f '{{.State.Running}}' "${CONTAINER_NAME}" 2>/dev/null)" = "true" ]
+}
+
+start_daemon ()
+{
+    if daemon_status; then
+        echo "${CONTAINER_NAME} already running" >> "${LOG_FILE}"
+        return 0
+    fi
+
+    DATA="$(_load_conf "${CONF_DATA}" "${DEFAULT_DATA}")"
+    PROJECTS="$(_load_conf "${CONF_PROJECTS}" "${DEFAULT_PROJECTS}")"
+    ROOTS="$(_load_conf "${CONF_ROOTS}" "")"
+    PIN="$(_load_conf "${CONF_PIN}" "")"
+
+    if [ -f "${IMAGE_TGZ}" ] && ! docker image inspect "${IMAGE_TAG}" >/dev/null 2>&1; then
+        echo "docker load ${IMAGE_TGZ} (start) ..." >> "${LOG_FILE}"
+        docker load -i "${IMAGE_TGZ}" >> "${LOG_FILE}" 2>&1 || return 1
+    fi
+    if ! docker image inspect "${IMAGE_TAG}" >/dev/null 2>&1; then
+        echo "ERROR: 本机没有镜像 ${IMAGE_TAG}" >> "${LOG_FILE}"
+        return 1
+    fi
+
+    mkdir -p "${DATA}"
+    echo "${PROJECTS}" | tr ',' '\n' | while read -r p; do
+        [ -n "$p" ] && mkdir -p "$p"
+    done
+    chown -R 1000:10 "${DATA}" 2>/dev/null || true
+    echo "${PROJECTS}" | tr ',' '\n' | while read -r p; do
+        [ -n "$p" ] && chown -R 1000:10 "$p" 2>/dev/null || true
+    done
+
+    local -a DOCKER_ARGS=( -d --name "${CONTAINER_NAME}" --restart unless-stopped
+                           -p "${APP_PORT}:8080" -e "TZ=Asia/Shanghai" )
+    [ -n "${ROOTS}" ] && DOCKER_ARGS+=( -e "NASDSH_ROOTS=${ROOTS}" )
+    [ -n "${PIN}" ] && DOCKER_ARGS+=( -e "TERM_PIN=${PIN}" )
+    DOCKER_ARGS+=( -v "${DATA}:/data" )
+    # 项目根用逗号分隔（路径内不要带逗号/空格）
+    for p in $(echo "${PROJECTS}" | tr ',' ' '); do
+        [ -n "$p" ] && DOCKER_ARGS+=( -v "${p}:${p}" )
+    done
+    DOCKER_ARGS+=( "${IMAGE_TAG}" )
+
+    # 日志脱敏：-e KEY=value 不落日志（凭据只进容器 env）
+    local _args="" _prev_skip=0
+    for a in "${DOCKER_ARGS[@]}"; do
+        if [ "$_prev_skip" = "1" ]; then
+            _args="$_args <redacted>"; _prev_skip=0
+        elif [ "$a" = "-e" ]; then
+            _args="$_args -e"; _prev_skip=1
+        else
+            _args="$_args $a"
+        fi
+    done
+    echo "docker run${_args}" >> "${LOG_FILE}"
+    docker rm -f "${CONTAINER_NAME}" >/dev/null 2>&1 || true
+    docker run "${DOCKER_ARGS[@]}" >> "${LOG_FILE}" 2>&1 || return 1
+
+    # 等 /api/health 就绪（checkport 也会再查）
+    for _ in $(seq 1 30); do
+        if curl -sf -m 3 "http://127.0.0.1:${APP_PORT}/api/health" >/dev/null 2>&1; then
+            echo "${CONTAINER_NAME} healthy on :${APP_PORT}" >> "${LOG_FILE}"
+            return 0
+        fi
+        sleep 2
+    done
+    echo "WARNING: ${APP_PORT} 60s 内未就绪（容器可能仍在启动）" >> "${LOG_FILE}"
+    return 0
+}
+
+stop_daemon ()
+{
+    docker rm -f "${CONTAINER_NAME}" >/dev/null 2>&1 || true
+    echo "${CONTAINER_NAME} removed" >> "${LOG_FILE}"
+}

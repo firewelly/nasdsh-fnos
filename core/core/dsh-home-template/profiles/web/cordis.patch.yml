@@ -1,0 +1,4 @@
+# NasDSH web profile 用户 patch 层。
+# 这里默认留空；模型 provider 统一放在 $DSH_HOME/cordis.patch.yml（home 层），
+# 这样 web / headless / dsh-tui 三个 profile 共用同一份 provider 定义。
+[]

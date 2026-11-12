@@ -1,0 +1,61 @@
+#!/bin/bash
+# ===================================================================
+# nasdsh-update —— 升级 dsh / dsh-TUI（容器内执行，也可用页面按钮）
+#
+# 用法:
+#   nasdsh-update                 # 升级到最新版
+#   nasdsh-update 0.2.1-rc.5      # 指定 dsh 版本
+#   NASDSH_TUI_VERSION=0.18.0 nasdsh-update
+#
+# 说明:
+#   - 全局 npm 包安装在容器层，应用重建/升级后会回到镜像内置版本
+#   - TUI profile 写在 $DSH_HOME（持久卷），随应用升级保留
+#   - 正在运行的 Web 进程不会热更新；新开 Web/CLI 会话使用新版
+# ===================================================================
+set -e
+
+REG_CN="${NPM_CONFIG_REGISTRY:-https://registry.npmmirror.com}"
+REG_INTL="https://registry.npmjs.org"
+DSH_HOME="${DSH_HOME:-/data/dsh-home}"
+DSH_TARGET="${1:-}"
+TUI_TARGET="${NASDSH_TUI_VERSION:-}"
+
+latest() {
+  local pkg="$1"
+  curl -fsS -m 30 --noproxy '*' "$REG_CN/$pkg/latest" 2>/dev/null \
+    | python3 -c 'import json,sys;print(json.load(sys.stdin)["version"])' 2>/dev/null \
+    || curl -fsS -m 30 "$REG_INTL/$pkg/latest" 2>/dev/null \
+    | python3 -c 'import json,sys;print(json.load(sys.stdin)["version"])' 2>/dev/null \
+    || true
+}
+
+cur_dsh=$(dsh --version 2>/dev/null | head -1 || true)
+cur_tui=$(node -e 'try{console.log(require("/usr/local/lib/node_modules/@deepseek-harness-tui/dsh-tui/package.json").version)}catch(e){}' 2>/dev/null || true)
+
+if [ -z "$DSH_TARGET" ]; then
+  DSH_TARGET=$(latest "@deepseek-ai/dsh")
+fi
+if [ -z "$TUI_TARGET" ]; then
+  TUI_TARGET=$(latest "@deepseek-harness-tui/dsh-tui")
+fi
+[ -n "$DSH_TARGET" ] || { echo "❌ 查询 dsh 最新版本失败（网络不通？）"; exit 1; }
+[ -n "$TUI_TARGET" ] || { echo "❌ 查询 dsh-TUI 最新版本失败"; exit 1; }
+
+echo "当前: dsh=$cur_dsh  dsh-tui=$cur_tui"
+echo "目标: dsh=$DSH_TARGET  dsh-tui=$TUI_TARGET"
+
+echo "==> 安装全局包（镜像源: $REG_CN）"
+npm install -g --no-audit --no-fund \
+  "@deepseek-ai/dsh@$DSH_TARGET" \
+  "@deepseek-harness-tui/dsh-tui@$TUI_TARGET" \
+  || { echo "  镜像源失败，尝试官方源"; npm install -g --no-audit --no-fund \
+         "@deepseek-ai/dsh@$DSH_TARGET" "@deepseek-harness-tui/dsh-tui@$TUI_TARGET" \
+         --registry="$REG_INTL"; }
+
+echo "==> 更新持久卷中的 dsh-TUI profile"
+mkdir -p "$DSH_HOME/profiles"
+dsh plugin --profile dsh-tui add "@deepseek-harness-tui/dsh-tui@$TUI_TARGET" \
+  || echo "⚠️ TUI profile 更新失败（全局命令仍可用；可稍后重试）"
+
+echo "完成: dsh=$(dsh --version 2>/dev/null | head -1)  dsh-tui=$TUI_TARGET"
+echo "提示: 正在运行的 Web 进程仍是旧版；关闭并重新打开 Web tab 即可使用新版。"
