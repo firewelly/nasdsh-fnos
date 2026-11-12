@@ -40,6 +40,16 @@ def manifest_field(name, default=None):
     return m.group(1) if m else default
 
 
+def _icon_source():
+    """ICON 来源：优先主仓库 store/icon-256.png（fnos/ 放进 nas-dsh 仓库时），
+    否则用本仓库 fnos/payload/ui/images/icon-512.png。"""
+    for cand in (os.path.join(ROOT, "store", "icon-256.png"),
+                 os.path.join(HERE, "payload", "ui", "images", "icon-512.png")):
+        if os.path.isfile(cand):
+            return cand
+    raise SystemExit("找不到图标（store/icon-256.png 或 fnos/payload/ui/images/icon-512.png）")
+
+
 def sha256_file(path):
     h = hashlib.sha256()
     with open(path, "rb") as f:
@@ -131,7 +141,7 @@ def main():
             f.write(svc)
 
         for name in ("ICON.PNG", "ICON_256.PNG"):
-            shutil.copy(os.path.join(ROOT, "store", "icon-256.png"),
+            shutil.copy(_icon_source(),
                         os.path.join(root_stage, name))
         shutil.copy(app_tgz, os.path.join(root_stage, "app.tgz"))
 
