@@ -1,0 +1,3 @@
+#!/bin/sh
+# update —— nasdsh-update 的短别名
+exec /usr/local/bin/nasdsh-update "$@"

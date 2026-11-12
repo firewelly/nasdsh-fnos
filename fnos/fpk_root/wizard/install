@@ -1,0 +1,59 @@
+[
+    {
+        "stepTitle": "配置 NasDSH（DeepSeek Harness 工作台）",
+        "items": [
+            {
+                "type": "tips",
+                "helpText": "项目根目录：存放代码项目的目录，多个用英文逗号分隔（路径内不要含逗号/空格），例如 /vol1/1000/projects,/vol1/1000/work。这些目录会按原路径挂载进容器；CLI 终端与 Workspace 选择器都以它们为白名单。留空使用默认值 /vol1/1000/nasdsh-projects。"
+            },
+            {
+                "type": "text",
+                "field": "nasdsh_projects",
+                "label": "项目根目录（多个用逗号分隔）",
+                "rules": [{
+                    "required": false,
+                    "message": "路径错误"
+                }]
+            },
+            {
+                "type": "tips",
+                "helpText": "数据目录：dsh profile、模型凭据、会话与日志的持久位置，升级保留。默认在应用数据目录（系统盘）；建议指向 SSD 数据卷，如 /vol1/1000/nasdsh-data。留空使用默认值。"
+            },
+            {
+                "type": "text",
+                "field": "nasdsh_data_dir",
+                "label": "数据目录（可选）",
+                "rules": [{
+                    "required": false,
+                    "message": "路径错误"
+                }]
+            },
+            {
+                "type": "tips",
+                "helpText": "允许根目录：新建工作台时可选择的目录白名单（冒号分隔），容器内只读写这些目录。默认取第一个项目根目录的顶层目录（如 /vol1/1000/projects → /vol1）。留空使用默认值。"
+            },
+            {
+                "type": "text",
+                "field": "nasdsh_roots",
+                "label": "允许根目录（可选）",
+                "rules": [{
+                    "required": false,
+                    "message": "格式错误"
+                }]
+            },
+            {
+                "type": "tips",
+                "helpText": "访问口令：设置后打开工作台需输入；只在局域网内使用可留空。模型 API Key 不在安装时填写——装好后打开工作台，在 dsh 界面 Settings → Models 里配置（凭据保存在本地数据目录，永不进安装包/日志）。"
+            },
+            {
+                "type": "text",
+                "field": "nasdsh_pin",
+                "label": "访问口令 PIN（可选）",
+                "rules": [{
+                    "required": false,
+                    "message": "口令错误"
+                }]
+            }
+        ]
+    }
+]

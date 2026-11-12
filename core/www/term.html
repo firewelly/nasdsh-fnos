@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>NasDSH terminal</title>
+<link rel="stylesheet" href="/vendor/xterm.css">
+<style>
+  html,body{height:100%;margin:0;background:#0e1014;}
+  #term{width:100%;height:100%;padding:4px;}
+  #overlay{
+    position:fixed;inset:0;display:none;align-items:center;justify-content:center;
+    background:rgba(0,0,0,.7);color:#e6e9f0;font:14px -apple-system,sans-serif;
+    flex-direction:column;gap:10px;cursor:pointer;z-index:10;text-align:center;padding:20px;
+  }
+  #overlay .btn{border:1px solid #4d8dff;color:#4d8dff;padding:7px 18px;border-radius:8px;}
+  #overlay .sub{color:#8a93a6;font-size:12px;max-width:420px;line-height:1.6;}
+</style>
+</head>
+<body>
+<div id="term"></div>
+<div id="overlay">
+  <div id="ovmsg">连接已断开</div>
+  <div class="sub" id="ovsub"></div>
+  <div class="btn" id="ovbtn">重新连接</div>
+</div>
+<script src="/vendor/xterm.js"></script>
+<script src="/vendor/addon-fit.js"></script>
+<script>
+"use strict";
+const qs = new URLSearchParams(location.search);
+const session = qs.get("session") || "main";
+const path = qs.get("path") || "";
+const LANG = qs.get("lang") === "en" ? "en" : "zh";
+const T = {
+  zh: {
+    disconnected: "连接已断开",
+    reconnect: "重新连接",
+    connecting: "连接中…",
+    reconnecting: "重连中 ({0})…",
+    closedSub: "会话可能已结束。点击重新连接会在原项目目录重新启动 dsh-TUI。",
+    title: "NasDSH 终端"
+  },
+  en: {
+    disconnected: "Disconnected",
+    reconnect: "Reconnect",
+    connecting: "Connecting…",
+    reconnecting: "Reconnecting ({0})…",
+    closedSub: "The session may have ended. Clicking reconnect restarts dsh-TUI in the same project directory.",
+    title: "NasDSH terminal"
+  }
+}[LANG];
+const t = (k, ...a) => {
+  let s = T[k] || k;
+  a.forEach((v, i) => { s = s.replace("{" + i + "}", v); });
+  return s;
+};
+document.documentElement.lang = LANG === "en" ? "en" : "zh-CN";
+document.title = t("title");
+document.getElementById("ovbtn").textContent = t("reconnect");
+
+const term = new Terminal({
+  fontFamily: '"SF Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace',
+  fontSize: 14,
+  theme: {
+    background: "#0e1014",
+    foreground: "#e6e9f0",
+    cursor: "#4d8dff",
+    selectionBackground: "#2a4d69",
+    black: "#1c202b", red: "#e05555", green: "#3fb96b", yellow: "#d6a24a",
+    blue: "#4d8dff", magenta: "#a98bff", cyan: "#56b6c2", white: "#e6e9f0",
+    brightBlack: "#8a93a6", brightRed: "#ff7a7a", brightGreen: "#5fd68a",
+    brightYellow: "#f0bc6c", brightBlue: "#78bfff", brightMagenta: "#c3a8ff",
+    brightCyan: "#7cd4de", brightWhite: "#ffffff"
+  },
+  scrollback: 8000,
+  cursorBlink: true,
+  allowProposedApi: true
+});
+const fit = new FitAddon.FitAddon();
+term.loadAddon(fit);
+term.open(document.getElementById("term"));
+fitAddonFit();
+window.addEventListener("resize", fitAddonFit);
+
+function fitAddonFit(){
+  try { fit.fit(); sendResize(); } catch(e){}
+}
+
+let ws = null, closed = false, retry = 0, pingTimer = null;
+
+function wsURL(){
+  const proto = location.protocol === "https:" ? "wss" : "ws";
+  let u = proto + "://" + location.host + "/ws/" + encodeURIComponent(session) +
+          "?cols=" + term.cols + "&rows=" + term.rows;
+  if (path) u += "&path=" + encodeURIComponent(path);
+  return u;
+}
+
+function connect(){
+  closed = false;
+  overlay(false, t("connecting"));
+  ws = new WebSocket(wsURL());
+  ws.binaryType = "arraybuffer";
+
+  ws.onopen = () => {
+    retry = 0;
+    overlay(false);
+    sendResize();
+    pingTimer = setInterval(() => {
+      try{ ws.send(JSON.stringify({ping: 1})); }catch(e){}
+    }, 30000);
+  };
+  ws.onmessage = ev => {
+    if (ev.data instanceof ArrayBuffer) term.write(new Uint8Array(ev.data));
+    else term.write(ev.data);
+  };
+  ws.onclose = () => {
+    clearInterval(pingTimer);
+    if (closed) return;
+    retry++;
+    if (retry > 6){
+      overlay(true, t("disconnected"), t("closedSub"));
+      return;
+    }
+    overlay(false, t("reconnecting", retry));
+    setTimeout(connect, Math.min(retry * 1200, 5000));
+  };
+  ws.onerror = () => { try{ ws.close(); }catch(e){} };
+}
+
+function sendResize(){
+  if (ws && ws.readyState === 1){
+    ws.send(JSON.stringify({resize: [term.cols, term.rows]}));
+  }
+}
+
+const enc = new TextEncoder();
+term.onData(data => {
+  if (ws && ws.readyState === 1) ws.send(enc.encode(data));
+});
+
+term.onResize(() => sendResize());
+
+function overlay(show, msg, sub){
+  const ov = document.getElementById("overlay");
+  ov.style.display = show ? "flex" : "none";
+  if (msg) document.getElementById("ovmsg").textContent = msg;
+  document.getElementById("ovsub").textContent = sub || "";
+}
+document.getElementById("overlay").addEventListener("click", () => {
+  retry = 0; connect();
+});
+
+connect();
+</script>
+</body>
+</html>

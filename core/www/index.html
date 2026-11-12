@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>NasDSH 工作台</title>
+<style>
+:root{
+  --bg:#0e1014; --bg2:#151821; --bg3:#1c202b; --bd:#2a3040;
+  --fg:#e6e9f0; --dim:#8a93a6; --acc:#4d8dff; --acc2:#7c5cff;
+  --ok:#3fb96b; --bad:#e05555; --web:#4d8dff; --cli:#e0a458;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;margin:0;}
+body{
+  background:var(--bg);color:var(--fg);
+  font-family:-apple-system,"SF Pro Text","PingFang SC","Microsoft YaHei",sans-serif;
+  display:flex;flex-direction:column;overflow:hidden;
+}
+header{
+  display:flex;align-items:center;gap:10px;padding:9px 14px;
+  background:var(--bg2);border-bottom:1px solid var(--bd);flex:0 0 auto;
+}
+header .logo{font-weight:700;font-size:15px;white-space:nowrap;letter-spacing:.2px;}
+header .logo b{color:var(--acc);}
+header .logo i{font-style:normal;color:var(--acc2);}
+header .spacer{flex:1;}
+header .hint{color:var(--dim);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#tabs{display:flex;align-items:flex-end;gap:2px;overflow-x:auto;flex:1;padding:0 6px;scrollbar-width:none;}
+#tabs::-webkit-scrollbar{display:none;}
+.tab{
+  display:flex;align-items:center;gap:7px;max-width:250px;min-width:120px;
+  padding:7px 9px 7px 11px;border-radius:9px 9px 0 0;cursor:pointer;
+  color:var(--dim);font-size:13px;white-space:nowrap;position:relative;
+  border:1px solid transparent;border-bottom:none;user-select:none;
+}
+.tab .dot{width:7px;height:7px;border-radius:50%;background:var(--dim);flex:0 0 auto;}
+.tab .dot.on{background:var(--ok);}
+.tab .kind{
+  font-size:9px;font-weight:700;letter-spacing:.6px;padding:2px 4px;border-radius:4px;
+  flex:0 0 auto;line-height:1;
+}
+.tab .kind.web{color:#bcd4ff;background:rgba(77,141,255,.18);}
+.tab .kind.cli{color:#ffd9a8;background:rgba(224,164,88,.16);}
+.tab .name{overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0;}
+.tab .dir{display:block;font-size:10px;color:var(--dim);opacity:.7;overflow:hidden;text-overflow:ellipsis;}
+.tab.active{background:var(--bg);color:var(--fg);border-color:var(--bd);}
+.tab.active .dot{background:var(--acc);}
+.tab .close{width:18px;height:18px;line-height:16px;text-align:center;border-radius:5px;color:var(--dim);font-size:14px;flex:0 0 auto;}
+.tab .close:hover{background:var(--bg3);color:var(--fg);}
+#newtab{
+  flex:0 0 auto;width:30px;height:30px;margin-bottom:5px;border-radius:8px;
+  border:1px solid var(--bd);background:var(--bg3);color:var(--fg);
+  font-size:17px;cursor:pointer;
+}
+#newtab:hover{background:var(--bd);}
+#upbtn{
+  flex:0 0 auto;padding:5px 11px;border-radius:8px;border:1px solid var(--bd);
+  background:var(--bg3);color:var(--fg);font-size:12px;cursor:pointer;white-space:nowrap;
+}
+#upbtn:hover{background:var(--bd);}
+#upbtn:disabled{opacity:.5;cursor:wait;}
+#sessbtn{
+  flex:0 0 auto;padding:5px 11px;border-radius:8px;border:1px solid var(--bd);
+  background:var(--bg3);color:var(--fg);font-size:12px;cursor:pointer;white-space:nowrap;
+}
+#sessbtn:hover{background:var(--bd);}
+.sessrow{
+  display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--bd);
+}
+.sessrow:last-child{border-bottom:0;}
+.sessrow .meta{flex:1;min-width:0;}
+.sessrow .nm{font-size:13px;display:flex;align-items:center;gap:7px;}
+.sessrow .pt{font-size:11px;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:3px;}
+.sessrow .kind{font-size:9px;font-weight:700;letter-spacing:.6px;padding:2px 4px;border-radius:4px;}
+.sessrow .kind.web{color:#bcd4ff;background:rgba(77,141,255,.18);}
+.sessrow .kind.cli{color:#ffd9a8;background:rgba(224,164,88,.16);}
+.sessrow .dot{width:7px;height:7px;border-radius:50%;background:var(--dim);flex:0 0 auto;}
+.sessrow .dot.on{background:var(--ok);}
+.sessrow button{padding:6px 12px;border-radius:7px;border:1px solid var(--bd);background:var(--bg3);color:var(--fg);font-size:12px;cursor:pointer;white-space:nowrap;}
+.sessrow button.danger{color:var(--bad);border-color:rgba(224,85,85,.4);}
+.sessrow button:hover{background:var(--bd);}
+#sessempty{color:var(--dim);font-size:12px;padding:16px;text-align:center;}
+main{flex:1;position:relative;background:#000;}
+.frame{position:absolute;inset:0;width:100%;height:100%;border:0;display:none;background:#101014;}
+.frame.active{display:block;}
+#empty{
+  position:absolute;inset:0;display:flex;flex-direction:column;gap:14px;
+  align-items:center;justify-content:center;color:var(--dim);text-align:center;padding:20px;
+}
+#empty .big{font-size:42px;font-weight:700;letter-spacing:2px;color:var(--fg);}
+#empty .big b{color:var(--acc);}
+#empty .sub{font-size:13px;max-width:560px;line-height:1.7;}
+#empty .actions{display:flex;gap:10px;margin-top:4px;flex-wrap:wrap;justify-content:center;}
+#empty button{
+  padding:9px 20px;border-radius:9px;border:1px solid var(--acc);
+  background:transparent;color:var(--acc);font-size:14px;cursor:pointer;
+}
+#empty button.alt{border-color:var(--bd);color:var(--fg);}
+#empty button:hover{background:rgba(77,141,255,.08);}
+dialog{
+  border:1px solid var(--bd);border-radius:14px;background:var(--bg2);color:var(--fg);
+  padding:0;width:min(580px,94vw);max-height:88vh;
+}
+dialog::backdrop{background:rgba(0,0,0,.6);}
+.dlg-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--bd);font-weight:600;}
+.dlg-head .x{cursor:pointer;color:var(--dim);font-size:18px;}
+.dlg-body{padding:14px 18px;display:flex;flex-direction:column;gap:14px;overflow-y:auto;}
+.dlg-body label{font-size:12px;color:var(--dim);display:block;margin-bottom:6px;}
+.dlg-body input[type=text]{
+  width:100%;padding:9px 11px;border-radius:8px;border:1px solid var(--bd);
+  background:var(--bg);color:var(--fg);font-size:14px;
+}
+.kinds{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.kindcard{
+  border:1px solid var(--bd);border-radius:10px;padding:12px 13px;cursor:pointer;
+  background:var(--bg);position:relative;transition:border-color .15s,background .15s;
+}
+.kindcard:hover{background:var(--bg3);}
+.kindcard.sel{border-color:var(--acc);background:rgba(77,141,255,.08);}
+.kindcard .t{font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px;}
+.kindcard .t .pill{font-size:9px;font-weight:700;letter-spacing:.6px;padding:2px 5px;border-radius:4px;}
+.kindcard.web .pill{color:#bcd4ff;background:rgba(77,141,255,.18);}
+.kindcard.cli .pill{color:#ffd9a8;background:rgba(224,164,88,.16);}
+.kindcard .d{font-size:11px;color:var(--dim);line-height:1.6;margin-top:6px;}
+#dirlist{border:1px solid var(--bd);border-radius:8px;background:var(--bg);max-height:250px;overflow-y:auto;font-size:13px;}
+#dirlist .row{padding:8px 12px;cursor:pointer;display:flex;justify-content:space-between;}
+#dirlist .row:hover{background:var(--bg3);}
+#dirlist .row .sub{color:var(--dim);font-size:11px;}
+#crumbs{font-size:12px;color:var(--dim);word-break:break-all;margin-bottom:6px;}
+#crumbs b{color:var(--acc);cursor:pointer;}
+.dlg-foot{padding:12px 18px 16px;display:flex;gap:10px;justify-content:flex-end;}
+.dlg-foot button{padding:9px 20px;border-radius:9px;font-size:14px;cursor:pointer;border:1px solid var(--bd);background:var(--bg3);color:var(--fg);}
+.dlg-foot .primary{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600;}
+.dlg-foot .primary:disabled{opacity:.45;cursor:not-allowed;}
+#err,#err2{color:var(--bad);font-size:12px;min-height:15px;}
+footer{
+  flex:0 0 auto;padding:5px 14px;font-size:11px;color:var(--dim);
+  background:var(--bg2);border-top:1px solid var(--bd);
+  display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;
+}
+footer a{color:var(--dim);text-decoration:none;cursor:pointer;}
+footer a:hover{color:var(--fg);text-decoration:underline;}
+footer .links{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+#langbtn{
+  padding:2px 7px;border-radius:6px;border:1px solid var(--bd);background:var(--bg3);
+  color:var(--dim);font-size:11px;cursor:pointer;line-height:1.4;
+}
+#langbtn:hover{color:var(--fg);background:var(--bd);}
+@media (max-width:760px){
+  header .hint{display:none;}
+  header{gap:8px;padding:8px 10px;}
+  #empty .big{font-size:34px;}
+  footer{font-size:10px;gap:6px;}
+}
+#privacyOverlay{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center;}
+#privacyBox{background:var(--bg2);border:1px solid var(--bd);border-radius:14px;width:min(920px,96vw);max-height:90vh;display:flex;flex-direction:column;}
+#privacyHead{padding:16px 20px;border-bottom:1px solid var(--bd);font-weight:600;font-size:16px;display:flex;justify-content:space-between;align-items:center;gap:10px;}
+#privacyHead .x{cursor:pointer;color:var(--dim);font-size:18px;font-weight:400;}
+#privacyBody{padding:16px 20px;overflow-y:auto;flex:1;font-size:13px;line-height:1.75;}
+#privacyBody h1{font-size:17px;margin:6px 0 10px;color:var(--fg);}
+#privacyBody h2{font-size:14px;margin:18px 0 8px;color:var(--acc);}
+#privacyBody h3{font-size:13px;margin:14px 0 8px;color:var(--acc);}
+#privacyBody ul{margin:8px 0;padding-left:20px;}
+#privacyBody li{margin:3px 0;}
+#privacyBody p{margin:8px 0;}
+#privacyBody code{background:var(--bg3);padding:1px 5px;border-radius:4px;font-size:12px;}
+#privacyBody table{border-collapse:collapse;width:100%;margin:10px 0;font-size:12px;display:block;overflow-x:auto;}
+#privacyBody th,#privacyBody td{border:1px solid var(--bd);padding:6px 8px;vertical-align:top;text-align:left;}
+#privacyBody th{background:var(--bg3);white-space:nowrap;}
+#privacyBody .doc-loading,#privacyBody .doc-fail{color:var(--dim);}
+#privacyBody pre.doc-license{white-space:pre-wrap;font-size:12px;line-height:1.6;background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:12px;}
+#privacyFoot{padding:14px 20px;border-top:1px solid var(--bd);display:flex;gap:12px;justify-content:center;flex-wrap:wrap;}
+#privacyFoot button{padding:10px 26px;border-radius:9px;font-size:14px;cursor:pointer;border:1px solid var(--bd);background:var(--bg3);color:var(--fg);}
+#privacyFoot .agree{background:var(--ok);border-color:var(--ok);color:#fff;font-weight:600;}
+.pinbar{position:absolute;inset:0;z-index:50;display:none;align-items:center;justify-content:center;background:var(--bg);}
+.pinbar .box{display:flex;flex-direction:column;gap:12px;width:min(320px,88vw);}
+.pinbar input{padding:11px 13px;border-radius:9px;border:1px solid var(--bd);background:var(--bg2);color:var(--fg);font-size:16px;text-align:center;letter-spacing:4px;}
+.pinbar button{padding:10px;border-radius:9px;border:0;background:var(--acc);color:#fff;font-size:14px;cursor:pointer;}
+</style>
+</head>
+<body>
+
+<div id="privacyOverlay">
+  <div id="privacyBox">
+    <div id="privacyHead"><span id="privacyTitle">隐私政策与用户协议</span><span style="display:flex;gap:10px;align-items:center;"><button id="docLang" style="padding:2px 8px;border-radius:6px;border:1px solid var(--bd);background:var(--bg3);color:var(--dim);font-size:11px;cursor:pointer;">EN</button><span class="x" id="privacyX" style="display:none;" onclick="closePrivacy()">✕</span></span></div>
+    <div id="privacyBody"></div>
+    <div id="privacyFoot">
+      <button id="btnDisagree" onclick="window.location.href='about:blank'">不同意</button>
+      <button class="agree" id="btnAgree" onclick="agreePrivacy()">同意并使用</button>
+      <button id="btnPrivacyClose" style="display:none;" onclick="closePrivacy()">关闭</button>
+    </div>
+  </div>
+</div>
+
+<header>
+  <span class="logo"><b>&gt;_</b> Nas<i>DSH</i></span>
+  <div id="tabs"></div>
+  <button id="newtab" title="新建工作台">＋</button>
+  <span class="spacer"></span>
+  <span class="hint" id="hint">共享 Web 实例 · 项目在 UI 内切 Workspace · CLI 每 tab 一个项目</span>
+  <button id="sessbtn" title="查看/恢复已有会话">会话</button>
+  <button id="upbtn" title="升级 dsh / dsh-TUI（容器内执行，重启后新会话生效）">⬆ 升级 dsh</button>
+</header>
+
+<main id="stage">
+  <div id="empty">
+    <div class="big"><b>&gt;_</b> NasDSH</div>
+    <div class="sub" id="emptySub">在 NAS 上运行 DeepSeek Harness。<br>
+      打开共享的 <b>Web 工作台</b>（默认，项目在 dsh UI 内切 Workspace），
+      或新建 <b>CLI 终端</b>（dsh-TUI，一个 tab 一个项目）。</div>
+    <div class="actions">
+      <button id="btnOpenWeb" onclick="openWebTab()">打开 Web 工作台</button>
+      <button class="alt" id="btnNewCli" onclick="newTabDialog('cli')">新建 CLI 终端</button>
+      <button class="alt" id="btnExisting" onclick="openSessionList()">已有会话</button>
+    </div>
+  </div>
+  <div class="pinbar" id="pinbar">
+    <div class="box">
+      <div style="text-align:center;font-weight:600;" id="pinTitle">输入访问口令</div>
+      <input type="password" id="pinInput" autocomplete="off">
+      <button onclick="submitPin()" id="pinGo">进入工作台</button>
+      <div id="err" style="text-align:center;"></div>
+    </div>
+  </div>
+</main>
+
+<dialog id="dlg">
+  <div class="dlg-head"><span id="dlgTitle">新建工作台</span><span class="x" onclick="dlg.close()">✕</span></div>
+  <div class="dlg-body">
+    <div>
+      <label id="lblType">工作台类型</label>
+      <div class="kinds">
+        <div class="kindcard web sel" id="kindWeb" onclick="selectKind('web')">
+          <div class="t"><span class="pill">WEB</span> <span id="webCardTitle">Web 工作台</span></div>
+          <div class="d" id="webCardDesc">共享 dsh web 实例，浏览器图形界面；项目在 dsh 的 Workspaces 里添加和切换。默认。</div>
+        </div>
+        <div class="kindcard cli" id="kindCli" onclick="selectKind('cli')">
+          <div class="t"><span class="pill">CLI</span> <span id="cliCardTitle">CLI 终端</span></div>
+          <div class="d" id="cliCardDesc">tmux 中直接运行 dsh-TUI，一个 tab 一个项目；关窗保留、重开即续。</div>
+        </div>
+      </div>
+    </div>
+    <div id="webNote" style="font-size:12px;color:var(--dim);line-height:1.7;background:var(--bg);border:1px solid var(--bd);border-radius:9px;padding:11px 13px;">
+      共享实例只启动一次，内存占用更低。打开后点 dsh 侧栏的 <b>Workspaces → +</b>，
+      从 <b>Home → projects → volume1</b> 进入项目目录（也可用 Edit path 直接输入）；
+      需要多个项目时在同一个界面里切换 Workspace。
+    </div>
+    <div id="cliFields" style="display:none;flex-direction:column;gap:14px;">
+      <div>
+        <label id="lblName">工作台名称（tab 显示名）</label>
+        <input type="text" id="pName" placeholder="my-project" autocomplete="off">
+      </div>
+      <div>
+        <label id="lblDir">项目目录</label>
+        <div id="crumbs"></div>
+        <div id="dirlist"></div>
+      </div>
+    </div>
+    <div id="err2"></div>
+  </div>
+  <div class="dlg-foot">
+    <button onclick="dlg.close()" id="btnCancel">取消</button>
+    <button class="primary" id="btnCreate" onclick="createSession()">打开 Web 工作台</button>
+  </div>
+</dialog>
+
+<dialog id="sessdlg">
+  <div class="dlg-head"><span id="sessTitle">已有会话</span><span class="x" onclick="sessdlg.close()">✕</span></div>
+  <div class="dlg-body" style="gap:0;">
+    <div id="sesslist"></div>
+  </div>
+  <div class="dlg-foot">
+    <button onclick="sessdlg.close()" id="btnSessClose">关闭</button>
+  </div>
+</dialog>
+
+<footer>
+  <span>NasDSH · dsh <span id="footVer">…</span> · dsh-TUI <span id="footTui">…</span></span>
+  <span class="links">
+    <a href="#" id="lnkPrivacy">隐私政策</a> ·
+    <a href="#" id="lnkTerms">用户协议</a> ·
+    <a href="#" id="lnkLicense">许可协议</a> ·
+    <a href="https://github.com/firewelly/nasdsh/issues" target="_blank" rel="noreferrer" id="lnkSupport">技术支持</a>
+    <button id="langbtn" title="切换语言 / Switch language">EN</button>
+  </span>
+</footer>
+
+<script src="/vendor/sha256.js"></script>
+<script>
+"use strict";
+
+/* ==========================================================================
+   国际化（zh / en）。默认跟随浏览器语言，可手动切换并记忆。
+   ========================================================================== */
+const I18N = {
+  zh: {
+    title: "NasDSH 工作台",
+    hint: "共享 Web 实例 · 项目在 UI 内切 Workspace · CLI 每 tab 一个项目",
+    newtabTitle: "新建工作台",
+    sessBtnTitle: "查看/恢复已有会话",
+    sessBtn: "会话",
+    upTitle: "升级 dsh / dsh-TUI（容器内执行，重启后新会话生效）",
+    upBtn: "⬆ 升级 dsh",
+    upBusy: "升级中…",
+    emptySub: "在 NAS 上运行 DeepSeek Harness。<br>打开共享的 <b>Web 工作台</b>（默认，项目在 dsh UI 内切 Workspace），或新建 <b>CLI 终端</b>（dsh-TUI，一个 tab 一个项目）。",
+    openWeb: "打开 Web 工作台",
+    newCli: "新建 CLI 终端",
+    existing: "已有会话",
+    pinTitle: "输入访问口令",
+    pinGo: "进入工作台",
+    pinEmpty: "请输入口令",
+    pinFail: "校验失败",
+    dlgTitle: "新建工作台",
+    lblType: "工作台类型",
+    webCardTitle: "Web 工作台",
+    webCardDesc: "共享 dsh web 实例，浏览器图形界面；项目在 dsh 的 Workspaces 里添加和切换。默认。",
+    cliCardTitle: "CLI 终端",
+    cliCardDesc: "tmux 中直接运行 dsh-TUI，一个 tab 一个项目；关窗保留、重开即续。",
+    webNote: "共享实例只启动一次，内存占用更低。打开后点 dsh 侧栏的 <b>Workspaces → +</b>，从 <b>Home → projects → volume1</b> 进入项目目录（也可用 Edit path 直接输入）；需要多个项目时在同一个界面里切换 Workspace。",
+    lblName: "工作台名称（tab 显示名）",
+    lblDir: "项目目录",
+    cancel: "取消",
+    createWeb: "打开 Web 工作台",
+    createCli: "创建 CLI 终端",
+    starting: "启动 dsh web…",
+    creating: "创建终端…",
+    errName: "请填写工作台名称",
+    errDir: "请选择项目目录",
+    errResp: "响应解析失败",
+    errStatus: "错误",
+    errKill: "结束会话失败: ",
+    errRestart: "重启失败: ",
+    errEnd: "结束失败: ",
+    tabWebSub: "共享实例 · UI 内切 Workspace",
+    tabCloseWeb: "关闭 tab（Web 进程保留）",
+    tabCloseCli: "关闭 tab（会话保留）",
+    tabKillWeb: "结束共享 dsh web 进程",
+    tabKillCli: "结束 tmux 会话",
+    tabKillConfirm: "结束「{0}」并关闭 tab？\n（{1}，未保存的对话可能丢失）",
+    sessEmpty: "还没有会话。点“＋”新建一个。",
+    sessShared: " · 共享实例，项目在 UI 内切 Workspace",
+    sessStopped: " · 已停止（打开时自动启动）",
+    open: "打开",
+    locate: "定位",
+    restart: "重启",
+    end: "结束",
+    confirmRestart: "重启共享 dsh web 进程？正在进行的对话会中断，但会话记录保留。",
+    confirmEndWeb: "结束共享 dsh web 进程？正在进行的对话会中断，会话记录保留。",
+    confirmEndCli: "结束会话「{0}」？",
+    upgradeConfirm: "升级容器内的 dsh / dsh-TUI 到最新版？\n（需要网络；正在运行的 Web/CLI 会话不会自动重启）",
+    upgradeDone: "升级完成：{0} → {1}\n新开工作台即用新版",
+    upgradeFail: "升级失败：\n{0}",
+    upgradeUnknown: "未知错误",
+    browseLoc: "位置: ",
+    browseUp: "← 上一级",
+    pick: "选择",
+    emptyDir: "（空目录）",
+    dlgExisting: "已有会话",
+    close: "关闭",
+    docPrivacy: "隐私政策",
+    docTerms: "用户协议",
+    docLicense: "许可协议",
+    docSupport: "技术支持",
+    privacyHead: "隐私政策与用户协议",
+    agree: "同意并使用",
+    disagree: "不同意",
+    loading: "正在加载…",
+    docLoadFail: "文档加载失败，请稍后重试（也可在 GitHub 仓库查看）。",
+    langBtn: "EN",
+    consentNote: "点击「同意并使用」即表示您已阅读并同意上述条款。"
+  },
+  en: {
+    title: "NasDSH Workbench",
+    hint: "Shared web instance · switch projects as Workspaces in the dsh UI · one CLI tab per project",
+    newtabTitle: "New workspace",
+    sessBtnTitle: "View or resume existing sessions",
+    sessBtn: "Sessions",
+    upTitle: "Upgrade dsh / dsh-TUI inside the container (applies to new sessions)",
+    upBtn: "⬆ Upgrade dsh",
+    upBusy: "Upgrading…",
+    emptySub: "Runs DeepSeek Harness on your NAS.<br>Open the shared <b>Web workbench</b> (default; add and switch projects as Workspaces in the dsh UI), or create a <b>CLI terminal</b> (dsh-TUI, one project per tab).",
+    openWeb: "Open Web workbench",
+    newCli: "New CLI terminal",
+    existing: "Existing sessions",
+    pinTitle: "Enter access PIN",
+    pinGo: "Unlock",
+    pinEmpty: "Please enter the PIN",
+    pinFail: "Verification failed",
+    dlgTitle: "New workspace",
+    lblType: "Workspace type",
+    webCardTitle: "Web workbench",
+    webCardDesc: "One shared dsh web instance with the full graphical UI; add and switch projects as Workspaces inside dsh. Default.",
+    cliCardTitle: "CLI terminal",
+    cliCardDesc: "Run dsh-TUI directly in tmux, one project per tab; survives closing the window and resumes when reopened.",
+    webNote: "The shared instance starts only once and uses less memory. After opening, click <b>Workspaces → +</b> in the dsh sidebar and pick a project under <b>Home → projects → volume1</b> (or use Edit path); switch Workspaces in the same UI for multiple projects.",
+    lblName: "Workspace name (tab label)",
+    lblDir: "Project directory",
+    cancel: "Cancel",
+    createWeb: "Open Web workbench",
+    createCli: "Create CLI terminal",
+    starting: "Starting dsh web…",
+    creating: "Creating terminal…",
+    errName: "Enter a workspace name",
+    errDir: "Choose a project directory",
+    errResp: "Failed to parse the response",
+    errStatus: "Error",
+    errKill: "Failed to end the session: ",
+    errRestart: "Restart failed: ",
+    errEnd: "Failed to end: ",
+    tabWebSub: "shared instance · switch Workspaces in the UI",
+    tabCloseWeb: "Close tab (web process stays)",
+    tabCloseCli: "Close tab (session stays)",
+    tabKillWeb: "Stop the shared dsh web process",
+    tabKillCli: "End the tmux session",
+    tabKillConfirm: "End “{0}” and close the tab?\n({1}; unsaved conversations may be lost)",
+    sessEmpty: "No sessions yet. Click “＋” to create one.",
+    sessShared: " · shared instance, switch Workspaces in the UI",
+    sessStopped: " · stopped (starts when opened)",
+    open: "Open",
+    locate: "Show",
+    restart: "Restart",
+    end: "End",
+    confirmRestart: "Restart the shared dsh web process? Ongoing conversations are interrupted; session records are kept.",
+    confirmEndWeb: "Stop the shared dsh web process? Ongoing conversations are interrupted; session records are kept.",
+    confirmEndCli: "End session “{0}”?",
+    upgradeConfirm: "Upgrade dsh / dsh-TUI in the container to the latest version?\n(Needs network; running Web/CLI sessions are not restarted automatically)",
+    upgradeDone: "Upgrade complete: {0} → {1}\nOpen a new workspace to use it",
+    upgradeFail: "Upgrade failed:\n{0}",
+    upgradeUnknown: "unknown error",
+    browseLoc: "Location: ",
+    browseUp: "← Up",
+    pick: "Select",
+    emptyDir: "(empty directory)",
+    dlgExisting: "Existing sessions",
+    close: "Close",
+    docPrivacy: "Privacy Policy",
+    docTerms: "Terms of Service",
+    docLicense: "License",
+    docSupport: "Support",
+    privacyHead: "Privacy Policy & Terms of Service",
+    agree: "Agree and continue",
+    disagree: "Decline",
+    loading: "Loading…",
+    docLoadFail: "Failed to load the document. Please retry later (it is also available in the GitHub repository).",
+    langBtn: "中文",
+    consentNote: "By clicking “Agree and continue” you confirm that you have read and accept the terms above."
+  }
+};
+
+let LANG = (() => {
+  const saved = localStorage.getItem("nasdsh_lang");
+  if (saved === "zh" || saved === "en") return saved;
+  return (navigator.language || "en").toLowerCase().startsWith("zh") ? "zh" : "en";
+})();
+
+function t(key, ...args){
+  let s = (I18N[LANG] && I18N[LANG][key]) || (I18N.zh[key] || key);
+  args.forEach((v, i) => { s = s.replace("{" + i + "}", v); });
+  return s;
+}
+
+/* 静态文案：id → i18n key；带 HTML 的单独处理 */
+const TEXT_BINDINGS = {
+  hint: "hint", sessbtn: "sessBtn", upbtn: "upBtn", btnOpenWeb: "openWeb",
+  btnNewCli: "newCli", btnExisting: "existing", pinTitle: "pinTitle",
+  pinGo: "pinGo", dlgTitle: "dlgTitle", lblType: "lblType",
+  webCardTitle: "webCardTitle", webCardDesc: "webCardDesc",
+  cliCardTitle: "cliCardTitle", cliCardDesc: "cliCardDesc",
+  lblName: "lblName", lblDir: "lblDir", btnCancel: "cancel",
+  sessTitle: "dlgExisting", btnSessClose: "close",
+  lnkPrivacy: "docPrivacy", lnkTerms: "docTerms", lnkLicense: "docLicense",
+  lnkSupport: "docSupport", langbtn: "langBtn", btnDisagree: "disagree",
+  btnAgree: "agree", btnPrivacyClose: "close", docLang: "langBtn"
+};
+
+function applyI18n(){
+  document.documentElement.lang = LANG === "zh" ? "zh-CN" : "en";
+  document.title = t("title");
+  for (const [id, key] of Object.entries(TEXT_BINDINGS)){
+    const el = document.getElementById(id);
+    if (el) el.textContent = t(key);
+  }
+  const sub = document.getElementById("emptySub");
+  if (sub) sub.innerHTML = t("emptySub");
+  const note = document.getElementById("webNote");
+  if (note) note.innerHTML = t("webNote");
+  $("#newtab").title = t("newtabTitle");
+  $("#sessbtn").title = t("sessBtnTitle");
+  $("#upbtn").title = t("upTitle");
+  const create = $("#btnCreate");
+  if (create) create.textContent = newKind === "web" ? t("createWeb") : t("createCli");
+  if (currentDoc) showDoc(currentDoc, currentDocViewOnly);
+}
+
+function switchLang(){
+  LANG = LANG === "zh" ? "en" : "zh";
+  localStorage.setItem("nasdsh_lang", LANG);
+  applyI18n();
+  renderTabs();
+  if ($("#sessdlg").open) renderSessionList(window._sessions || []);
+  if (newKind === "cli" && browsePath) browse(browsePath);
+}
+
+/* ==========================================================================
+   文档：隐私政策 / 用户协议 / 许可协议（单源：仓库根目录的 md / LICENSE）
+   ========================================================================== */
+const DOCS = {
+  privacy: { url: "/privacy.md", title: "docPrivacy", markdown: true },
+  terms:   { url: "/terms.md",   title: "docTerms",   markdown: true },
+  license: { url: "/license.txt", title: "docLicense", markdown: false }
+};
+let currentDoc = null, currentDocViewOnly = true;
+
+function esc(s){
+  return String(s).replace(/[&<>"']/g, c =>
+    ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+/* 只取当前语言段落（PRIVACY.md / TERMS.md 用 <!-- lang:xx:begin --> 标记） */
+function sliceLang(md){
+  const re = new RegExp("<!-- lang:" + LANG + ":begin -->([\\s\\S]*?)<!-- lang:" + LANG + ":end -->");
+  const m = md.match(re);
+  if (m) return m[1];
+  const alt = LANG === "zh" ? "en" : "zh";
+  const m2 = md.match(new RegExp("<!-- lang:" + alt + ":begin -->([\\s\\S]*?)<!-- lang:" + alt + ":end -->"));
+  return m2 ? m2[1] : md;
+}
+
+function inline(s){
+  s = esc(s);
+  s = s.replace(/`([^`]+)`/g, "<code>$1</code>");
+  s = s.replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
+  s = s.replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<i>$2</i>");
+  s = s.replace(/&lt;(https?:\/\/[^&]+?)&gt;/g,
+    '<a href="$1" target="_blank" rel="noreferrer">$1</a>');
+  s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (m0, txt, href) => {
+    if (!/^https?:/.test(href)) href = "https://github.com/firewelly/nasdsh/blob/main/" + href.replace(/^\.\//, "");
+    return '<a href="' + href + '" target="_blank" rel="noreferrer">' + txt + "</a>";
+  });
+  return s;
+}
+
+/* 够用的 markdown 子集：标题 / 列表 / 表格 / 段落 / 分隔线 */
+function mdToHtml(md){
+  const lines = md.replace(/\r\n/g, "\n").split("\n");
+  const out = [];
+  let i = 0, list = null;
+  const closeList = () => { if (list){ out.push("</" + list + ">"); list = null; } };
+  while (i < lines.length){
+    const raw = lines[i];
+    const line = raw.trim();
+    if (!line){ closeList(); i++; continue; }
+    if (/^---+$/.test(line)){ closeList(); out.push("<hr>"); i++; continue; }
+    let m = line.match(/^(#{1,4})\s+(.*)$/);
+    if (m){ closeList(); const n = Math.min(m[1].length, 3); out.push("<h" + n + ">" + inline(m[2]) + "</h" + n + ">"); i++; continue; }
+    /* 表格 */
+    if (line.startsWith("|") && lines[i + 1] && /^\|[\s:|-]+\|$/.test(lines[i + 1].trim())){
+      closeList();
+      const cells = r => r.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map(c => c.trim());
+      const head = cells(line);
+      let html = "<table><thead><tr>" + head.map(h => "<th>" + inline(h) + "</th>").join("") + "</tr></thead><tbody>";
+      i += 2;
+      while (i < lines.length && lines[i].trim().startsWith("|")){
+        html += "<tr>" + cells(lines[i]).map(c => "<td>" + inline(c) + "</td>").join("") + "</tr>";
+        i++;
+      }
+      out.push(html + "</tbody></table>");
+      continue;
+    }
+    if (/^[-*]\s+/.test(line)){
+      if (list !== "ul"){ closeList(); out.push("<ul>"); list = "ul"; }
+      let item = line.replace(/^[-*]\s+/, "");
+      while (i + 1 < lines.length && /^\s{2,}\S/.test(lines[i + 1]) && !/^[-*]\s+/.test(lines[i + 1].trim())){
+        i++;
+        item += " " + lines[i].trim();
+      }
+      out.push("<li>" + inline(item) + "</li>");
+      i++; continue;
+    }
+    m = line.match(/^\d+\.\s+(.*)$/);
+    if (m){
+      if (list !== "ol"){ closeList(); out.push("<ol>"); list = "ol"; }
+      let item = m[1];
+      while (i + 1 < lines.length && /^\s{2,}\S/.test(lines[i + 1]) && !/^\d+\.\s+/.test(lines[i + 1].trim())){
+        i++;
+        item += " " + lines[i].trim();
+      }
+      out.push("<li>" + inline(item) + "</li>");
+      i++; continue;
+    }
+    closeList();
+    // 合并连续普通行：中文正文常按行断句，逐行成段会把 **粗体**、[链接](x) 截断
+    let para = line;
+    while (i + 1 < lines.length){
+      const nxt = lines[i + 1].trim();
+      if (!nxt || /^[-*]\s+/.test(nxt) || /^\d+\.\s+/.test(nxt) ||
+          /^#{1,4}\s+/.test(nxt) || /^---+$/.test(nxt) || nxt.startsWith("|")) break;
+      i++;
+      para += " " + nxt;
+    }
+    // 中文按行断句：合并后去掉「汉字/全角标点」之间的空格，英文仍保留空格
+    para = para.replace(/([\u4e00-\u9fff\uff00-\uffef])\s+(?=[\u4e00-\u9fff\uff00-\uffef])/g, "$1");
+    out.push("<p>" + inline(para) + "</p>");
+    i++;
+  }
+  closeList();
+  return out.join("\n");
+}
+
+async function showDoc(kind, viewOnly = true){
+  const doc = DOCS[kind];
+  if (!doc) return;
+  currentDoc = kind; currentDocViewOnly = viewOnly;
+  $("#privacyTitle").textContent = t(doc.title);
+  $("#privacyX").style.display = viewOnly ? "" : "none";
+  $("#btnDisagree").style.display = viewOnly ? "none" : "";
+  $("#btnAgree").style.display = viewOnly ? "none" : "";
+  $("#btnPrivacyClose").style.display = viewOnly ? "" : "none";
+  $("#privacyBody").innerHTML = '<p class="doc-loading">' + esc(t("loading")) + "</p>";
+  $("#privacyOverlay").style.display = "flex";
+  $("#privacyBody").scrollTop = 0;
+  try{
+    const res = await fetch(doc.url, { cache: "no-cache" });
+    if (!res.ok) throw new Error(res.status);
+    const text = await res.text();
+    $("#privacyBody").innerHTML = doc.markdown
+      ? mdToHtml(sliceLang(text))
+      : '<pre class="doc-license">' + esc(text) + "</pre>";
+  }catch(e){
+    $("#privacyBody").innerHTML =
+      '<p class="doc-fail">' + esc(t("docLoadFail")) + "</p>" +
+      '<p class="doc-fail">' + esc(t("docPrivacy")) + " · " + esc(t("docTerms")) + " · " +
+      esc(t("docLicense")) + " → " +
+      '<a href="https://github.com/firewelly/nasdsh" target="_blank" rel="noreferrer">github.com/firewelly/nasdsh</a></p>';
+  }
+}
+window.showDoc = showDoc;
+
+/* ---------- 隐私同意 ---------- */
+function checkPrivacyConsent(){
+  if (!localStorage.getItem("nasdsh_privacy_consent")){
+    showDoc("privacy", false);
+    return false;
+  }
+  return true;
+}
+function agreePrivacy(){
+  localStorage.setItem("nasdsh_privacy_consent", Date.now().toString());
+  $("#privacyOverlay").style.display = "none";
+  currentDoc = null;
+  initApp();
+}
+function closePrivacy(){
+  $("#privacyOverlay").style.display = "none";
+  currentDoc = null;
+}
+window.closePrivacy = closePrivacy;
+
+const $ = s => document.querySelector(s);
+const stage = $("#stage"), tabsEl = $("#tabs"), dlg = $("#dlg");
+const WEB_TAB_NAME = "__web__";
+const WEB_API_NAME = "@web";
+let openTabs = normalizeTabs(JSON.parse(localStorage.getItem("nasdsh_tabs") || "[]"));
+let browsePath = "";
+let newKind = localStorage.getItem("nasdsh_kind") || "web";
+let pollTimer = null;
+
+function normalizeTabs(tabs){
+  const out = [];
+  let hasWeb = false;
+  for (const tab of (Array.isArray(tabs) ? tabs : [])){
+    if (!tab || !tab.name) continue;
+    if (tab.type === "web"){
+      if (!hasWeb){ out.push({name: WEB_TAB_NAME, type: "web", path: ""}); hasWeb = true; }
+    } else {
+      out.push({name: tab.name, type: "cli", path: tab.path || ""});
+    }
+  }
+  return out;
+}
+
+async function api(url, opts){
+  const res = await fetch(url, opts);
+  const data = await res.json().catch(() => ({ error: t("errResp") }));
+  if (!res.ok) throw new Error(data.error || (res.status + " " + t("errStatus")));
+  return data;
+}
+
+/* ---------- PIN ---------- */
+function needPin(){ $("#pinbar").style.display = "flex"; $("#pinInput").focus(); }
+async function submitPin(){
+  const pin = $("#pinInput").value.trim();
+  if (!pin){ $("#err").textContent = t("pinEmpty"); return; }
+  try{
+    const ch = await api("/api/pin-challenge");
+    const resp = sha256(ch.nonce + sha256(pin));
+    await api("/api/pin-login", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({nonce: ch.nonce, response: resp})
+    });
+    $("#err").textContent = "";
+    $("#pinbar").style.display = "none";
+    rebuildFrames();
+    refreshSessions();
+  }catch(e){ $("#err").textContent = e.message || t("pinFail"); }
+}
+function rebuildFrames(){
+  for (const tab of openTabs){
+    const fr = document.getElementById("fr-" + tab.name);
+    if (fr) fr.remove();
+  }
+  renderTabs();
+}
+
+/* ---------- tabs ---------- */
+function saveTabs(){ localStorage.setItem("nasdsh_tabs", JSON.stringify(openTabs)); }
+
+function openWebTab(activate=true){
+  const existing = openTabs.find(t => t.type === "web");
+  if (existing){
+    if (!document.getElementById("fr-" + existing.name)) renderTabs();
+    const webInfo = (window._sessions || []).find(s => s.name === WEB_API_NAME);
+    if (webInfo && !webInfo.alive) reloadWebTab();
+    if (activate) activateTab(existing.name);
+    return;
+  }
+  openTabs.unshift({name: WEB_TAB_NAME, type: "web", path: ""});
+  saveTabs();
+  renderTabs();
+  if (activate) activateTab(WEB_TAB_NAME);
+}
+
+function reloadWebTab(){
+  const fr = document.getElementById("fr-" + WEB_TAB_NAME);
+  if (fr) fr.src = "/api/web/launch";
+}
+
+function addTab(name, path, type, activate=true){
+  type = type === "web" ? "web" : "cli";
+  if (type === "web"){ openWebTab(activate); return; }
+  if (openTabs.some(t => t.name === name)){ activateTab(name); return; }
+  openTabs.push({name, path, type});
+  saveTabs();
+  renderTabs();
+  if (activate) activateTab(name);
+}
+
+function removeTab(name, alsoKill){
+  const idx = openTabs.findIndex(t => t.name === name);
+  const tab = idx >= 0 ? openTabs[idx] : null;
+  if (idx >= 0) openTabs.splice(idx, 1);
+  saveTabs();
+  const fr = document.getElementById("fr-" + name);
+  if (fr) fr.remove();
+  renderTabs();
+  if (alsoKill){
+    const req = tab && tab.type === "web"
+      ? api("/api/web/stop", {method:"POST"})
+      : api("/api/sessions/" + encodeURIComponent(name), {method:"DELETE"});
+    req.catch(e => alert(t("errKill") + e.message));
+  }
+  const next = openTabs[0];
+  if (next) activateTab(next.name); else showEmpty();
+}
+
+function activateTab(name){
+  document.querySelectorAll(".tab").forEach(t =>
+    t.classList.toggle("active", t.dataset.name === name));
+  document.querySelectorAll(".frame").forEach(f =>
+    f.classList.toggle("active", f.id === "fr-" + name));
+  if (openTabs.length) $("#empty").style.display = "none";
+}
+function showEmpty(){ $("#empty").style.display = "flex"; }
+
+function frameSrc(tab){
+  if (tab.type === "web") return "/api/web/launch";
+  return "/term.html?session=" + encodeURIComponent(tab.name) +
+         "&path=" + encodeURIComponent(tab.path || "") + "&lang=" + LANG;
+}
+
+function renderTabs(){
+  tabsEl.innerHTML = "";
+  $("#empty").style.display = openTabs.length ? "none" : "flex";
+  for (const tab of openTabs){
+    const el = document.createElement("div");
+    el.className = "tab";
+    el.dataset.name = tab.name;
+    const kind = tab.type === "cli" ? "cli" : "web";
+    const title = kind === "web" ? "DSH Web" : tab.name;
+    const sub = kind === "web" ? t("tabWebSub") : shortPath(tab.path || "");
+    const closeTitle = kind === "web" ? t("tabCloseWeb") : t("tabCloseCli");
+    el.innerHTML = `<span class="dot" id="dot-${cssId(tab.name)}"></span>
+      <span class="kind ${kind}">${kind.toUpperCase()}</span>
+      <span class="name">${esc(title)}<span class="dir">${esc(sub)}</span></span>
+      <span class="close" title="${esc(closeTitle)}">✕</span>`;
+    el.addEventListener("click", ev => {
+      if (ev.target.classList.contains("close")) removeTab(tab.name, false);
+      else activateTab(tab.name);
+    });
+    el.addEventListener("contextmenu", ev => {
+      ev.preventDefault();
+      const verb = kind === "web" ? t("tabKillWeb") : t("tabKillCli");
+      if (confirm(t("tabKillConfirm", title, verb)))
+        removeTab(tab.name, true);
+    });
+    tabsEl.appendChild(el);
+    let fr = document.getElementById("fr-" + tab.name);
+    if (!fr){
+      fr = document.createElement("iframe");
+      fr.id = "fr-" + tab.name;
+      fr.className = "frame";
+      fr.allow = "clipboard-read; clipboard-write";
+      fr.src = frameSrc(tab);
+      stage.appendChild(fr);
+    }
+  }
+  if (openTabs.length && !document.querySelector(".frame.active"))
+    activateTab(openTabs[0].name);
+}
+
+function cssId(s){ return String(s).replace(/[^A-Za-z0-9_-]/g, "_"); }
+function shortPath(p){ return p.replace(/^\/volume\d+\//, "").replace(/^\/home\/[^/]+\//, "~/"); }
+
+/* ---------- 会话轮询 ---------- */
+async function refreshSessions(){
+  try{
+    const d = await api("/api/sessions");
+    const alive = new Map(d.sessions.map(s => [s.name, s]));
+    for (const tab of openTabs){
+      const key = tab.type === "web" ? WEB_API_NAME : tab.name;
+      const dot = document.getElementById("dot-" + cssId(tab.name));
+      if (dot) dot.classList.toggle("on", alive.has(key));
+      // 后端重启后元数据还在但 iframe 可能没建；补建
+      if (!document.getElementById("fr-" + tab.name) && alive.has(key)){
+        renderTabs();
+        break;
+      }
+    }
+    window._sessions = d.sessions;
+    if ($("#sessdlg").open) renderSessionList(d.sessions);
+  }catch(e){
+    if (String(e.message || "").includes("口令") || String(e.message || "").includes("PIN")) needPin();
+  }
+}
+
+/* ---------- 已有会话：恢复 / 结束 ---------- */
+function openSessionList(){
+  if (!$("#sessdlg").open) $("#sessdlg").showModal();
+  renderSessionList(window._sessions || []);
+  refreshSessions();
+}
+function renderSessionList(sessions){
+  const list = $("#sesslist");
+  sessions = [...sessions].sort((a, b) => (b.type === "web") - (a.type === "web"));
+  const open = new Set(openTabs.map(t => t.name));
+  const webOpen = openTabs.some(t => t.type === "web");
+  list.innerHTML = "";
+  if (!sessions.length){
+    list.innerHTML = `<div id="sessempty">${esc(t("sessEmpty"))}</div>`;
+    return;
+  }
+  for (const s of sessions){
+    const row = document.createElement("div");
+    row.className = "sessrow";
+    const isWeb = s.type === "web";
+    row.innerHTML = `<span class="dot ${s.alive ? "on" : ""}"></span>
+      <span class="kind ${isWeb ? "web" : "cli"}">${isWeb ? "WEB" : "CLI"}</span>
+      <span class="meta"><span class="nm">${esc(isWeb ? "DSH Web" : s.name)}</span>
+      <span class="pt">${esc(s.path || "")}${isWeb ? esc(t("sessShared")) : ""}${s.alive ? "" : esc(t("sessStopped"))}</span></span>`;
+
+    const openBtn = document.createElement("button");
+    if (isWeb){
+      openBtn.textContent = webOpen ? t("locate") : t("open");
+      openBtn.addEventListener("click", () => {
+        openWebTab();
+        $("#sessdlg").close();
+      });
+    } else {
+      openBtn.textContent = open.has(s.name) ? t("locate") : t("open");
+      openBtn.addEventListener("click", () => {
+        if (open.has(s.name)) activateTab(s.name);
+        else addTab(s.name, s.path || "", "cli");
+        $("#sessdlg").close();
+      });
+    }
+    row.appendChild(openBtn);
+
+    if (isWeb){
+      const restartBtn = document.createElement("button");
+      restartBtn.textContent = t("restart");
+      restartBtn.addEventListener("click", async () => {
+        if (!confirm(t("confirmRestart"))) return;
+        try{
+          await api("/api/web/restart", {method:"POST"});
+          openWebTab();
+          reloadWebTab();
+          refreshSessions();
+        }catch(e){ alert(t("errRestart") + e.message); }
+      });
+      row.appendChild(restartBtn);
+    }
+
+    const killBtn = document.createElement("button");
+    killBtn.className = "danger";
+    killBtn.textContent = t("end");
+    killBtn.addEventListener("click", async () => {
+      if (!confirm(isWeb ? t("confirmEndWeb") : t("confirmEndCli", s.name))) return;
+      try{
+        if (isWeb){
+          await api("/api/web/stop", {method:"POST"});
+          removeTab(WEB_TAB_NAME, false);
+        } else {
+          await api("/api/sessions/" + encodeURIComponent(s.name), {method:"DELETE"});
+          removeTab(s.name, false);
+        }
+        refreshSessions();
+      }catch(e){ alert(t("errEnd") + e.message); }
+    });
+    row.appendChild(killBtn);
+    list.appendChild(row);
+  }
+}
+
+/* ---------- 新建 ---------- */
+function newTabDialog(kind){
+  $("#err2").textContent = "";
+  $("#pName").value = "";
+  selectKind(kind || "web");
+  dlg.showModal();
+}
+function selectKind(kind){
+  newKind = kind === "cli" ? "cli" : "web";
+  localStorage.setItem("nasdsh_kind", newKind);
+  $("#kindWeb").classList.toggle("sel", newKind === "web");
+  $("#kindCli").classList.toggle("sel", newKind === "cli");
+  $("#err2").textContent = "";
+  $("#webNote").style.display = newKind === "web" ? "block" : "none";
+  $("#cliFields").style.display = newKind === "cli" ? "flex" : "none";
+  $("#btnCreate").textContent = newKind === "web" ? t("createWeb") : t("createCli");
+  if (newKind === "cli" && !$("#dirlist").children.length) browse(browsePath || "");
+}
+
+async function browse(path){
+  try{
+    const d = await api("/api/browse?path=" + encodeURIComponent(path));
+    browsePath = d.path;
+    $("#crumbs").innerHTML = esc(t("browseLoc")) + esc(d.path) +
+      ` <b onclick="browse(parentOf('${esc(d.path)}'))">${esc(t("browseUp"))}</b>`;
+    const list = $("#dirlist");
+    list.innerHTML = "";
+    for (const name of d.dirs){
+      const row = document.createElement("div");
+      row.className = "row";
+      row.innerHTML = `<span>📁 ${esc(name)}</span><span class="sub">${esc(t("pick"))}</span>`;
+      row.addEventListener("click", () => {
+        const p = d.path.replace(/\/$/,"") + "/" + name;
+        $("#pName").value = $("#pName").value || name;
+        browse(p);
+      });
+      list.appendChild(row);
+    }
+    if (!d.dirs.length) list.innerHTML = `<div class="row"><span class="sub">${esc(t("emptyDir"))}</span></div>`;
+  }catch(e){ $("#err2").textContent = e.message; }
+}
+window.browse = browse;
+function parentOf(p){ const x = p.replace(/\/$/,"").split("/"); x.pop(); return x.join("/") || "/"; }
+
+async function createSession(){
+  if (newKind === "web"){
+    dlg.close();
+    openWebTab();
+    return;
+  }
+  const name = $("#pName").value.trim();
+  const path = browsePath;
+  if (!name){ $("#err2").textContent = t("errName"); return; }
+  if (!path){ $("#err2").textContent = t("errDir"); return; }
+  const btn = $("#btnCreate");
+  btn.disabled = true;
+  const old = btn.textContent;
+  btn.textContent = t("creating");
+  try{
+    await api("/api/sessions", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({name, path, type:newKind})
+    });
+    dlg.close();
+    addTab(name, path, newKind);
+  }catch(e){
+    $("#err2").textContent = e.message;
+  }finally{
+    btn.disabled = false; btn.textContent = old;
+  }
+}
+window.newTabDialog = newTabDialog;
+window.createSession = createSession;
+window.submitPin = submitPin;
+window.parentOf = parentOf;
+
+/* ---------- 升级 ---------- */
+async function upgradeDsh(){
+  const btn = $("#upbtn");
+  if (!confirm(t("upgradeConfirm"))) return;
+  btn.disabled = true; btn.textContent = t("upBusy");
+  try{
+    const d = await api("/api/upgrade-dsh", {method:"POST"});
+    if (d.after) $("#footVer").textContent = d.after;
+    alert(d.ok ? t("upgradeDone", d.before, d.after)
+               : t("upgradeFail", d.output || t("upgradeUnknown")));
+  }catch(e){
+    alert(t("upgradeFail", e.message));
+  }finally{
+    btn.disabled = false; btn.textContent = t("upBtn");
+  }
+}
+
+/* ---------- init ---------- */
+$("#upbtn").addEventListener("click", upgradeDsh);
+$("#sessbtn").addEventListener("click", openSessionList);
+$("#newtab").addEventListener("click", () => newTabDialog());
+$("#pinInput").addEventListener("keydown", e => { if (e.key === "Enter") submitPin(); });
+$("#pName").addEventListener("keydown", e => { if (e.key === "Enter") createSession(); });
+$("#langbtn").addEventListener("click", switchLang);
+$("#docLang").addEventListener("click", switchLang);
+$("#lnkPrivacy").addEventListener("click", e => { e.preventDefault(); showDoc("privacy", true); });
+$("#lnkTerms").addEventListener("click", e => { e.preventDefault(); showDoc("terms", true); });
+$("#lnkLicense").addEventListener("click", e => { e.preventDefault(); showDoc("license", true); });
+
+async function initApp(){
+  try{
+    const info = await api("/api/info");
+    if (info.pinRequired && info.valid !== true) needPin();
+    if (info.dshVersion) $("#footVer").textContent = info.dshVersion;
+    if (info.tuiVersion) $("#footTui").textContent = info.tuiVersion;
+    if (!info.upgradeAvailable) $("#upbtn").style.display = "none";
+  }catch(e){}
+
+  renderTabs();
+  if (openTabs.length) activateTab(openTabs[0].name); else showEmpty();
+  refreshSessions();
+  pollTimer = setInterval(refreshSessions, 4000);
+}
+
+(function(){
+  applyI18n();
+  if (checkPrivacyConsent()) initApp();
+})();
+</script>
+</body>
+</html>
