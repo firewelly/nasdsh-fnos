@@ -50,6 +50,16 @@ def _icon_source():
     raise SystemExit("找不到图标（store/icon-256.png 或 fnos/payload/ui/images/icon-512.png）")
 
 
+def _ensure_rw(path):
+    """源树权限兜底：macOS tar 流/OneDrive 可能带来 0000 权限——copytree 会原样
+    复制，而 os.walk 因目录无 x 权限遍历不进去，后续 chmod 循环全部落空
+    （2026-11-13 eq14 实测）。这里先从根递归放开再进入打包流程。"""
+    os.chmod(path, 0o755)
+    for _root, _dirs, _files in os.walk(path):
+        for _n in _dirs + _files:
+            os.chmod(os.path.join(_root, _n), 0o755 if _n in _dirs else 0o644)
+
+
 def sha256_file(path):
     h = hashlib.sha256()
     with open(path, "rb") as f:
@@ -99,6 +109,8 @@ def main():
 
     stage = tempfile.mkdtemp(prefix="nasdsh_fpk_")
     try:
+        _ensure_rw(FPK_ROOT)
+        _ensure_rw(PAYLOAD)
         # ---- 1. docker save | gzip ----
         image_tgz = os.path.join(stage, "docker-image.tar.gz")
         print("==> docker save %s（gzip，几分钟）" % args.image)
