@@ -73,7 +73,7 @@ service_postinst ()
     PROJECTS="$(_load_conf "${CONF_PROJECTS}" "${DEFAULT_PROJECTS}")"
     mkdir -p "${DATA}"
     echo "${PROJECTS}" | tr ',' '\n' | while read -r p; do
-        [ -n "$p" ] && mkdir -p "$p"
+        [ -n "$p" ] && mkdir -p "$p" && chmod 755 "$p" 2>/dev/null || true
     done
     # 容器内以 uid 1000(gid 10) 运行；Docker 自动创建/root 建的目录需校正属主
     chown -R 1000:10 "${DATA}" 2>/dev/null || true
@@ -117,7 +117,7 @@ start_daemon ()
 
     mkdir -p "${DATA}"
     echo "${PROJECTS}" | tr ',' '\n' | while read -r p; do
-        [ -n "$p" ] && mkdir -p "$p"
+        [ -n "$p" ] && mkdir -p "$p" && chmod 755 "$p" 2>/dev/null || true
     done
     chown -R 1000:10 "${DATA}" 2>/dev/null || true
     echo "${PROJECTS}" | tr ',' '\n' | while read -r p; do
