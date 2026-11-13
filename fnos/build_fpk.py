@@ -44,6 +44,7 @@ def _icon_source():
     """ICON 来源：优先主仓库 store/icon-256.png（fnos/ 放进 nas-dsh 仓库时），
     否则用本仓库 fnos/payload/ui/images/icon-512.png。"""
     for cand in (os.path.join(ROOT, "store", "icon-256.png"),
+                 os.path.join(HERE, "payload", "ui", "images", "icon_256.png"),
                  os.path.join(HERE, "payload", "ui", "images", "icon-512.png")):
         if os.path.isfile(cand):
             return cand
