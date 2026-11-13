@@ -3,7 +3,7 @@
         "nasdsh.Application": {
             "title": "NasDSH 工作台",
             "desc": "DeepSeek Harness on NAS：共享 dsh Web + dsh-TUI",
-            "icon": "images/icon-{0}.png",
+            "icon": "images/icon_{0}.png",
             "type": "iframe",
             "port": "12704",
             "url": "/",
